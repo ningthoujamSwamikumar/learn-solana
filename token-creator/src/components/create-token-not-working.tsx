@@ -5,10 +5,10 @@ import * as mplToken from '@metaplex-foundation/mpl-token-metadata';
 import * as splToken from '@solana/spl-token';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import * as web3 from '@solana/web3.js';
-import React, { FormEvent, useState } from 'react'
-import { toast } from 'react-toastify';
+import React, { FormEvent, useState } from 'react';
 import { URL } from 'url';
 import { METADATA_PROGRAM_ID } from './contants';
+import { toast } from 'sonner';
 
 const CreateTokenForm = () => {
     const [program, setProgram] = useState<"legacy" | "extension">("legacy");
@@ -44,6 +44,8 @@ const CreateTokenForm = () => {
             const mintAccount = web3.Keypair.generate();
             const mintRent = await splToken.getMinimumBalanceForRentExemptMint(connection);
             const programId = program === "extension" ? splToken.TOKEN_2022_PROGRAM_ID : splToken.TOKEN_PROGRAM_ID;
+            const mintAuthority = new web3.PublicKey(mintAuth);
+            const freezeAuthority = new web3.PublicKey(freezeAuth);
             // const url = new URL(metaUri ?? "");
             // console.log("url: ", url);
             const metadata: mplToken.DataV2 = {
@@ -56,9 +58,11 @@ const CreateTokenForm = () => {
                 uses: null
             };
 
+            console.log("metadata program id: ", mplToken.PROGRAM_ID);
+
             const metadataPDAAndBump = web3.PublicKey.findProgramAddressSync(
                 [Buffer.from("metadata"), mintAccount.publicKey.toBuffer()],
-                METADATA_PROGRAM_ID
+                mplToken.PROGRAM_ID
             );
 
             const transaction = new web3.Transaction().add(
@@ -74,28 +78,27 @@ const CreateTokenForm = () => {
                 splToken.createInitializeMintInstruction(
                     mintAccount.publicKey,
                     decimal,
-                    new web3.PublicKey(mintAuth),
-                    new web3.PublicKey(freezeAuth),
+                    mintAuthority,
+                    freezeAuthority,
                     programId
+                ),
+                mplToken.createCreateMetadataAccountV3Instruction(
+                    {
+                        metadata: metadataPDAAndBump[0],
+                        mint: mintAccount.publicKey,
+                        mintAuthority: new web3.PublicKey(mintAuth),
+                        payer: user,
+                        updateAuthority: new web3.PublicKey(updateAuth),
+                    },
+                    {
+                        createMetadataAccountArgsV3: {
+                            collectionDetails: null,
+                            data: metadata,
+                            isMutable: true,
+                        }
+                    }
                 )
             );
-            //     mplToken.createCreateMetadataAccountV3Instruction(
-            //         {
-            //             metadata: metadataPDAAndBump[0],
-            //             mint: mintAccount.publicKey,
-            //             mintAuthority: new web3.PublicKey(mintAuth),
-            //             payer: user,
-            //             updateAuthority: new web3.PublicKey(updateAuth),
-            //         },
-            //         {
-            //             createMetadataAccountArgsV3: {
-            //                 collectionDetails: null,
-            //                 data: metadata,
-            //                 isMutable: true,
-            //             }
-            //         }
-            //     )
-            // );
 
             const signature = await sendTransaction(transaction, connection);
             const link = ""; //getExplorerLink("transaction", signature, "devnet");
