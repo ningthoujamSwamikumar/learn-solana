@@ -6,13 +6,14 @@ use crate::constants;
 use crate::state;
 
 #[derive(Accounts)]
+#[instruction(escrow_seed: String)]
 pub struct Deposit<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
 
     #[account(
-        init,
-        seeds = [constants::ESCROW_SEED, user.key().as_ref()],
+        init_if_needed,
+        seeds = [escrow_seed.as_bytes(), user.key().as_ref()],
         bump,
         payer = user,
         space = constants::DISCRIMINATOR_SIZE + state::Escrow::INIT_SPACE,
@@ -22,7 +23,12 @@ pub struct Deposit<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn deposit_handler(ctx: Context<Deposit>, escrow_amount: u64, unlock_price: f64) -> Result<()> {
+pub fn deposit_handler(
+    ctx: Context<Deposit>,
+    _escrow_seed: String,
+    escrow_amount: u64,
+    unlock_price: f64,
+) -> Result<()> {
     msg!("Depositing funds in escrow...");
 
     let escrow = &mut ctx.accounts.escrow_account;

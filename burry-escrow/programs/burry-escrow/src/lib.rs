@@ -15,11 +15,16 @@ declare_id!("Acvw64VBjom91m2sc7EJFxFytN7sf71W46N4SvdArX4z");
 pub mod burry_escrow {
     use super::*;
 
-    pub fn deposit(ctx: Context<Deposit>, escrow_amount: u64, unlock_price: f64) -> Result<()> {
-        deposit_handler(ctx, escrow_amount, unlock_price)
+    pub fn deposit(
+        ctx: Context<Deposit>,
+        escrow_seed: String,
+        escrow_amount: u64,
+        unlock_price: f64,
+    ) -> Result<()> {
+        deposit_handler(ctx, escrow_seed, escrow_amount, unlock_price)
     }
 
-    pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
-        withdraw_handler(ctx)
+    pub fn withdraw(ctx: Context<Withdraw>, escrow_seed: String) -> Result<()> {
+        withdraw_handler(ctx, escrow_seed)
     }
 }

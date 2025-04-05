@@ -7,13 +7,14 @@ use crate::error::*;
 use crate::Escrow;
 
 #[derive(Accounts)]
+#[instruction(escrow_seed:String)]
 pub struct Withdraw<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
 
     #[account(
         mut,
-        seeds = [ESCROW_SEED, user.key().as_ref()],
+        seeds = [escrow_seed.as_bytes(), user.key().as_ref()],
         bump,
         close = user,
     )]
@@ -27,14 +28,15 @@ pub struct Withdraw<'info> {
     pub system_proram: Program<'info, System>,
 }
 
-pub fn withdraw_handler(ctx: Context<Withdraw>) -> Result<()> {
+pub fn withdraw_handler(ctx: Context<Withdraw>, _escrow_seed: String) -> Result<()> {
     let feed = &ctx.accounts.feed_aggregator.load_mut()?;
     let escrow = &ctx.accounts.escrow_account;
 
     let current_sol_price: f64 = feed.get_result()?.try_into()?;
 
     //Check if the feed has been updated in the last 5 minutes
-    let _ = feed.check_staleness(Clock::get().unwrap().unix_timestamp, 300)
+    let _ = feed
+        .check_staleness(Clock::get().unwrap().unix_timestamp, 300)
         .map_err(|_| error!(EscrowErrorCode::StaleFeed));
 
     msg!("Current SOL price is {}", current_sol_price);
