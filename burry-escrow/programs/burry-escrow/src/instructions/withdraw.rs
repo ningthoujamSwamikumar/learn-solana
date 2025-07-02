@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::clock::Clock;
 use switchboard_solana::AggregatorAccountData;
@@ -28,27 +30,12 @@ pub struct Withdraw<'info> {
     pub system_proram: Program<'info, System>,
 }
 
-pub fn withdraw_handler(ctx: Context<Withdraw>, _escrow_seed: String) -> Result<()> {
-    let feed = &ctx.accounts.feed_aggregator.load_mut()?;
+fn withdraw_escrow_fund_and_close(ctx: Context<Withdraw>) -> Result<()> {
+    msg!("Withdrawing escrow fund");
     let escrow = &ctx.accounts.escrow_account;
-
-    let current_sol_price: f64 = feed.get_result()?.try_into()?;
-
-    //Check if the feed has been updated in the last 5 minutes
-    let _ = feed
-        .check_staleness(Clock::get().unwrap().unix_timestamp, 300)
-        .map_err(|_| error!(EscrowErrorCode::StaleFeed));
-
-    msg!("Current SOL price is {}", current_sol_price);
-    msg!("Unlock pricd is {}", escrow.unlock_price);
-
-    if current_sol_price < escrow.unlock_price {
-        return Err(EscrowErrorCode::SolPriceBelowUnlockPrice.into());
-    }
-
     let escrow_lamports = escrow.escrow_amount;
 
-    //we can use system_program::transfer method to transfer from an account which holds data
+    //we can't use system_program::transfer method to transfer from an account which holds data
     **escrow.to_account_info().try_borrow_mut_lamports()? = escrow
         .to_account_info()
         .lamports()
@@ -68,4 +55,32 @@ pub fn withdraw_handler(ctx: Context<Withdraw>, _escrow_seed: String) -> Result<
         .ok_or(ProgramError::InvalidArgument)?;
 
     Ok(())
+}
+
+pub fn withdraw_handler(ctx: Context<Withdraw>, _escrow_seed: String) -> Result<()> {
+    let feed_result = ctx.accounts.feed_aggregator.load();
+    let feed = match feed_result {
+        Ok(data) => data,
+        Err(_) => {
+            msg!("Invalid data feed!");
+            return withdraw_escrow_fund_and_close(ctx);
+        }
+    };
+    let escrow = &ctx.accounts.escrow_account;
+    let current_sol_price: f64 = feed.get_result()?.try_into()?;
+
+    //Check if the feed has been updated in the last 5 minutes
+    if let Err(e) = feed.check_staleness(Clock::get().unwrap().unix_timestamp, 300) {
+        msg!("Stale data found!");
+        return withdraw_escrow_fund_and_close(ctx);
+    }
+
+    msg!("Current SOL price is {}", current_sol_price);
+    msg!("Unlock pricd is {}", escrow.unlock_price);
+
+    if current_sol_price < escrow.unlock_price {
+        return Err(EscrowErrorCode::SolPriceBelowUnlockPrice.into());
+    }
+
+    withdraw_escrow_fund_and_close(ctx)
 }
