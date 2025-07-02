@@ -57,7 +57,8 @@ fn withdraw_escrow_fund_and_close(ctx: Context<Withdraw>) -> Result<()> {
     Ok(())
 }
 
-pub fn withdraw_handler(ctx: Context<Withdraw>, _escrow_seed: String) -> Result<()> {
+pub fn withdraw_handler(_ctx: Context<Withdraw>, _escrow_seed: String) -> Result<()> {
+    /*
     let feed_result = ctx.accounts.feed_aggregator.load();
     let feed = match feed_result {
         Ok(data) => data,
@@ -82,5 +83,7 @@ pub fn withdraw_handler(ctx: Context<Withdraw>, _escrow_seed: String) -> Result<
         return Err(EscrowErrorCode::SolPriceBelowUnlockPrice.into());
     }
 
-    withdraw_escrow_fund_and_close(ctx)
+    withdraw_escrow_fund_and_close(ctx) */
+
+    Ok(())
 }
