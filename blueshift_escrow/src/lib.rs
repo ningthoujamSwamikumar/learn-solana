@@ -7,12 +7,10 @@ entrypoint!(process_instruction);
 pub mod errors;
 pub mod instructions;
 pub mod state;
-pub mod types;
 
 pub use errors::*;
 pub use instructions::*;
 pub use state::*;
-pub use types::*;
 
 // 22222222222222222222222222222222222222222222
 pub const ID: Pubkey = [
@@ -27,7 +25,8 @@ fn process_instruction(
 ) -> ProgramResult {
     match instruction_data.split_first() {
         Some((Make::DISCRIMINATOR, data)) => Make::try_from((data, accounts))?.process(),
-        Some((Take::DISCRIMINATOR, _)) => Take::try_from((accounts))?.process(),
+        Some((Take::DISCRIMINATOR, _)) => Take::try_from(accounts)?.process(),
+        Some((Refund::DISCRIMINATOR, _)) => Refund::try_from(accounts)?.process(),
         _ => Err(ProgramError::InvalidInstructionData),
     }
 }

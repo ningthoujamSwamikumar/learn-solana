@@ -8,30 +8,31 @@ use pinocchio::{
 use pinocchio_token::state::TokenAccount;
 
 use crate::{
-    AccountCheck, AccountClose, AccountError, AssociatedTokenAccount, AssociatedTokenAccountCheck,
+    AccountCheck, AccountClose, AssociatedTokenAccount, AssociatedTokenAccountCheck,
     AssociatedTokenAccountInit, Escrow, MintInterface, ProgramAccount, ProgramAccountCheck,
     SignerAccount,
 };
 
 pub struct TakeAccounts<'a> {
     pub taker: &'a AccountInfo,
-    pub taker_ata_b: &'a AccountInfo,
-    pub taker_ata_a: &'a AccountInfo,
-    pub vault: &'a AccountInfo,
+    pub maker: &'a AccountInfo,
     pub escrow: &'a AccountInfo,
     pub mint_a: &'a AccountInfo,
     pub mint_b: &'a AccountInfo,
-    pub maker: &'a AccountInfo,
+    pub vault: &'a AccountInfo,
+    pub taker_ata_a: &'a AccountInfo,
+    pub taker_ata_b: &'a AccountInfo,
     pub maker_ata_b: &'a AccountInfo,
     pub system_program: &'a AccountInfo,
     pub token_program: &'a AccountInfo,
+    pub associated_token_program: &'a AccountInfo,
 }
 
 impl<'a> TryFrom<&'a [AccountInfo]> for TakeAccounts<'a> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo]) -> Result<Self, Self::Error> {
-        let [taker, taker_ata_a, taker_ata_b, vault, escrow, mint_a, mint_b, maker, maker_ata_b, system_program, token_program] =
+        let [taker, maker, escrow, mint_a, mint_b, vault, taker_ata_a, taker_ata_b, maker_ata_b, system_program, token_program, associated_token_program] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -58,6 +59,7 @@ impl<'a> TryFrom<&'a [AccountInfo]> for TakeAccounts<'a> {
             maker_ata_b,
             system_program,
             token_program,
+            associated_token_program,
         })
     }
 }
@@ -112,7 +114,6 @@ impl<'a> Take<'a> {
                 b"escrow",
                 self.accounts.maker.key().as_ref(),
                 &escrow.seed.to_le_bytes(),
-                &escrow.bump,
             ],
             &crate::ID,
         )
@@ -157,8 +158,9 @@ impl<'a> Take<'a> {
             authority: self.accounts.escrow,
             destination: self.accounts.maker,
         }
-        .invoke_signed(&[signer]);
+        .invoke_signed(&[signer])?;
 
+        drop(data);
         //close escrow account
         ProgramAccount::close(self.accounts.escrow, self.accounts.maker)
     }
