@@ -1,0 +1,9 @@
+[lib]
+name = "constant_product_curve"
+
+[package]
+name = "constant-product-curve"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
